@@ -38,7 +38,7 @@ namespace RandomPrime
                 random.NextBytes(bytes);
                 bytes[^1] &= 0x7F; // force sign bit to positive [^1] = [bytes.Length - 1]
                 BigInteger prime = new(bytes);
-                long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2));
+                long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2)); // ermittelt den größten Exponenten zur Basis 2 von prime (Log2(prime))
 
                 Console.WriteLine(prime);
 
@@ -49,16 +49,16 @@ namespace RandomPrime
                     continue;
                 }
 
-                BigInteger ggt = GetGgt(prime, maxExpo);
+                BigInteger greatestPowerOfTwoDevisor = GetMaxPowerOfTwoDevisor(prime, maxExpo);
 
                 // wenn größter Teiler = 0 
-                if (ggt == 0)
+                if (greatestPowerOfTwoDevisor == 0)
                 {
                     _numCount++;
                     continue;
                 }
 
-                if (IsPrime(prime, ggt))
+                if (IsPrime(prime, greatestPowerOfTwoDevisor))
                     return prime;
             }
         }
@@ -89,7 +89,7 @@ namespace RandomPrime
                         random.NextBytes(bytes);
                         bytes[^1] &= 0x7F; // force sign bit to positive [^1] = [bytes.Length - 1]
                         BigInteger prime = new(bytes);
-                        long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2));
+                        long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2)); // ermittelt den größten Exponenten zur Basis 2 von prime (Log2(prime))
 
                         semaphore.WaitOne();
                         Console.SetCursorPosition(Left, Top);
@@ -103,16 +103,16 @@ namespace RandomPrime
                             continue;
                         }
 
-                        BigInteger ggt = GetGgt(prime, maxExpo);
+                        BigInteger greatestPowerOfTwoDevisor = GetMaxPowerOfTwoDevisor(prime, maxExpo);
 
                         // wenn größter Teiler = 0 
-                        if (ggt == 0)
+                        if (greatestPowerOfTwoDevisor == 0)
                         {
                             _numCount++;
                             continue;
                         }
 
-                        if (IsPrime(prime, ggt))
+                        if (IsPrime(prime, greatestPowerOfTwoDevisor))
                             _truePrime = prime;
                     }
                 }).Start();
@@ -133,15 +133,15 @@ namespace RandomPrime
         /// Prüft eine Pseudoprimzahl auf ihre Primität
         /// </summary>
         /// <param name="prime">Pseudoprimzahl</param>
-        /// <param name="ggt">größter Teiler</param>
+        /// <param name="greatestPowerOfTwoDevisor">größter Teiler der Basis 2 zu prime</param>
         /// <returns>Boolean</returns>
-        private static bool IsPrime(BigInteger prime, BigInteger ggt)
+        private static bool IsPrime(BigInteger prime, BigInteger greatestPowerOfTwoDevisor)
         {
             for (int i = 1; i <= Rounds; i++)
             {
                 Random random = new();
                 BigInteger value = random.NextBigInteger(BigInteger.One, prime);
-                var mod = BigInteger.ModPow(value, ggt, prime);
+                var mod = BigInteger.ModPow(value, greatestPowerOfTwoDevisor, prime);
 
                 if (mod == 1)
                     continue;
@@ -149,12 +149,12 @@ namespace RandomPrime
                     continue;
                 else
                 {
-                    BigInteger expo = (prime - 1) / ggt;
+                    BigInteger expo = (prime - 1) / greatestPowerOfTwoDevisor;
                     for (long r = (long)expo - 1; r >= 0; r--)
                     {
                         try
                         {
-                            double _mod = (double)BigInteger.ModPow(value, ggt * (long)Math.Pow(2, r), prime);
+                            double _mod = (double)BigInteger.ModPow(value, greatestPowerOfTwoDevisor * (long)Math.Pow(2, r), prime);
 
                             if (_mod == -1)
                                 break;
@@ -174,21 +174,21 @@ namespace RandomPrime
         }
 
         /// <summary>
-        /// Bestimmt den größten Teiler
+        /// Bestimmt den größten Exponenten der Zahl 2 als Teiler von prime - 1
         /// </summary>
         /// <param name="prime">Pseudoprimzahl</param>
-        /// <param name="maxExpo">grüßter Exponent</param>
-        /// <returns>gröter Teiler von "prime"</returns>
-        private static BigInteger GetGgt(BigInteger prime, long maxExpo)
+        /// <param name="maxExpo">größter Exponent</param>
+        /// <returns>gröter Teiler von prime - 1 in Form einer Potenz von 2</returns>
+        private static BigInteger GetMaxPowerOfTwoDevisor(BigInteger prime, long maxExpo)
         {
             for (long i = maxExpo; i > 0; i--)
             {
                 BigInteger pm1 = prime - 1;
                 long exponent = (long)Math.Pow(2, i);
-                BigInteger ggt = pm1 / exponent;
+                BigInteger greatestPowerOfTwoDevisor = pm1 / exponent;
 
-                if (ggt * exponent == pm1)
-                    return ggt;
+                if (greatestPowerOfTwoDevisor * exponent == pm1)
+                    return greatestPowerOfTwoDevisor;
             }
 
             return 0;
