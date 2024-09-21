@@ -5,10 +5,6 @@
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Extensions\Extensions.csproj" />
-  </ItemGroup>
-
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="xcopy /i /y &quot;%25userprofile%25\source\repos\Tests\PrimeNumberGenerator\$(MSBuildProjectName)\bin\Debug\$(MSBuildProjectName).dll&quot; &quot;%25userprofile%25\source\Libraries\$(MSBuildProjectName).dll&quot;" />
   </Target>

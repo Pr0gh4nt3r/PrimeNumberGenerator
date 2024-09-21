@@ -7,7 +7,7 @@ namespace PrimeNumberGenerator
     internal class Program
     {
         private static int numCount = 0;
-        private static double accuracy;
+        private static string accuracy;
 
         static void Main(string[] args)
         {
@@ -18,18 +18,15 @@ namespace PrimeNumberGenerator
             {
                 bits = Convert.ToInt32(Console.ReadLine());
             }
-            catch { }
+            catch { Console.WriteLine("Ihre Eingabe war leer oder entsprach nicht dem erwarteten Format - Es wird der Standardwert angewandt"); }
 
-            Console.WriteLine("Wie oft soll eine scheinbare Primzahl auf ihre primität getestet werden (Min: 1; Standard: 10; Max: 54)?: ");
+            Console.Write("Wie oft soll eine scheinbare Primzahl auf ihre primität getestet werden (Min: 1; Standard: 28; Max: 54)?: ");
 
-            int testRounds = 10;
             try
             {
-                testRounds = Convert.ToInt32(Console.ReadLine());
+                RandomPrimeNumber.Rounds = Convert.ToInt32(Console.ReadLine());
             }
-            catch { }
-
-            RandomPrimeNumber.Rounds = testRounds;
+            catch { Console.WriteLine("Ihre Eingabe war leer oder entsprach nicht dem erwarteten Format - Es wird der Standardwert angewandt"); }
 
             #region Anwendungsinformationen
             Console.ForegroundColor = ConsoleColor.Red;
@@ -65,7 +62,7 @@ namespace PrimeNumberGenerator
             {
                 threadCount = Convert.ToInt32(Console.ReadLine());
             }
-            catch { }
+            catch { Console.WriteLine("Ihre Eingabe war leer oder entsprach nicht dem erwarteten Format - Es wird der Standardwert angewandt"); }
 
             Console.WriteLine("\nSuche Primzahl...");
 
@@ -73,7 +70,7 @@ namespace PrimeNumberGenerator
             sw.Start();
 
             Console.WriteLine($"\nFolgende Primzahl wurde gefunden:\n\n{RandomPrimeNumber.GetPrime(bits, threadCount, out numCount, out accuracy)}\n");
-            Console.WriteLine($"Diese Primzahl wurde mittels dem \"Miller-Rabin-Test\"\nunter der Berücksichtigung einer Prüfung auf \"Zeugen\" für die \"Nicht-Primität\" (Carmichael-Zahlen) überprüft\nund ist unter Vorbehalt dieses Tests nach {RandomPrimeNumber.Rounds} Durchgängen mit {accuracy.ToString("F16")}% iger Wahrscheinlichkeit eine Primzahl.\n");
+            Console.WriteLine($"Diese Primzahl wurde mittels dem \"Miller-Rabin-Test\"\nunter der Berücksichtigung einer Prüfung auf \"Zeugen\" für die \"Nicht-Primität\" (Carmichael-Zahlen) überprüft\nund ist unter Vorbehalt dieses Tests nach {RandomPrimeNumber.Rounds} Durchgängen mit {accuracy}% iger Wahrscheinlichkeit eine Primzahl.\n");
 
             sw.Stop();
             Console.WriteLine("{0} Zahlen in {1:00}:{2:00}:{3:00}.{4:0000} überprüft.", numCount, sw.Elapsed.Hours, sw.Elapsed.Minutes, sw.Elapsed.Seconds, sw.Elapsed.Milliseconds);

@@ -2,8 +2,6 @@
 using System.Numerics;
 using System.Threading;
 
-using Extensions;
-
 namespace RandomPrime
 {
     public static class RandomPrimeNumber
@@ -11,18 +9,12 @@ namespace RandomPrime
         private static BigInteger _truePrime = BigInteger.Zero;
         private static int _numCount;
 
-        private static int rounds = 54;
+        private static int rounds = 28;
         public static int Rounds
         {
             get => rounds;
             set => rounds = value;
         }
-
-        private static readonly BigInteger powerResult = BigInteger.Pow(4, Rounds);
-        private static readonly BigInteger oneBigInt = BigInteger.One * powerResult;
-        private static readonly BigInteger differrence = oneBigInt - BigInteger.One;
-
-        private static readonly double _accuracy = (double)differrence / (double)powerResult * 100;
 
         /// <summary>
         /// Generiert eine zufällige Primzahl
@@ -33,12 +25,7 @@ namespace RandomPrime
         {
             while (true)
             {
-                Random random = new();
-                byte[] bytes = new byte[(bits +7) / 8]; // 1 Byte = 8 Bit = bits/8
-                random.NextBytes(bytes);
-                bytes[^1] &= 0x7F; // force sign bit to positive [^1] = [bytes.Length - 1]
-                BigInteger prime = new(bytes);
-                long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2)); // ermittelt den größten Exponenten zur Basis 2 von prime (Log2(prime))
+                BigInteger prime = RandomNumber(bits);
 
                 Console.WriteLine(prime);
 
@@ -49,16 +36,7 @@ namespace RandomPrime
                     continue;
                 }
 
-                BigInteger greatestPowerOfTwoDevisor = GetMaxPowerOfTwoDevisor(prime, maxExpo);
-
-                // wenn größter Teiler = 0 
-                if (greatestPowerOfTwoDevisor == 0)
-                {
-                    _numCount++;
-                    continue;
-                }
-
-                if (IsPrime(prime, greatestPowerOfTwoDevisor))
+                if (IsProbablePrime(prime))
                     return prime;
             }
         }
@@ -70,7 +48,7 @@ namespace RandomPrime
         /// <param name="threadCount">Anzahl an Threads, mit denen die Kalkulation durchgeführt werden soll</param>
         /// <param name="numCount">Anzahl der verarbeiteten Zahlen</param>
         /// <returns>Gibt eine "echte" Primzahl zurück</returns>
-        public static BigInteger GetPrime(int bits, int threadCount, out int numCount, out double accuracy)
+        public static BigInteger GetPrime(int bits, int threadCount, out int numCount, out string accuracy)
         {
             var (Left, Top) = Console.GetCursorPosition();
             Semaphore semaphore = new(1, 1);
@@ -84,12 +62,7 @@ namespace RandomPrime
                         if (!_truePrime.Equals(BigInteger.Zero))
                             break;
 
-                        Random random = new();
-                        byte[] bytes = new byte[bits / 8]; // 1 Byte = 8 Bit = bits/8
-                        random.NextBytes(bytes);
-                        bytes[^1] &= 0x7F; // force sign bit to positive [^1] = [bytes.Length - 1]
-                        BigInteger prime = new(bytes);
-                        long maxExpo = (long)Math.Round(BigInteger.Log(prime, 2)); // ermittelt den größten Exponenten zur Basis 2 von prime (Log2(prime))
+                        BigInteger prime = RandomNumber(bits);
 
                         semaphore.WaitOne();
                         Console.SetCursorPosition(Left, Top);
@@ -103,16 +76,7 @@ namespace RandomPrime
                             continue;
                         }
 
-                        BigInteger greatestPowerOfTwoDevisor = GetMaxPowerOfTwoDevisor(prime, maxExpo);
-
-                        // wenn größter Teiler = 0 
-                        if (greatestPowerOfTwoDevisor == 0)
-                        {
-                            _numCount++;
-                            continue;
-                        }
-
-                        if (IsPrime(prime, greatestPowerOfTwoDevisor))
+                        if (IsProbablePrime(prime))
                             _truePrime = prime;
                     }
                 }).Start();
@@ -125,73 +89,125 @@ namespace RandomPrime
             Console.SetCursorPosition(Left, Top);
 
             numCount = _numCount;
-            accuracy = _accuracy;
+            accuracy = CalculateAccuracy();
             return _truePrime;
         }
 
         /// <summary>
-        /// Prüft eine Pseudoprimzahl auf ihre Primität
+        /// Erstellt eine kryptographisch sichere Zufallszahl in gewünschter Länge (Anzahl an Bits)
         /// </summary>
-        /// <param name="prime">Pseudoprimzahl</param>
-        /// <param name="greatestPowerOfTwoDevisor">größter Teiler der Basis 2 zu prime</param>
-        /// <returns>Boolean</returns>
-        private static bool IsPrime(BigInteger prime, BigInteger greatestPowerOfTwoDevisor)
+        /// <param name="bits">Anzahl an Bits</param>
+        /// <returns>zufällig generierter BigInteger mit der Länge [bits]</returns>
+        public static BigInteger RandomNumber(int bits)
         {
-            for (int i = 1; i <= Rounds; i++)
-            {
-                Random random = new();
-                BigInteger value = random.NextBigInteger(BigInteger.One, prime);
-                var mod = BigInteger.ModPow(value, greatestPowerOfTwoDevisor, prime);
+            // 1. Erstellen eines kryptographisch sicheren Zufallsgenerators
+            System.Security.Cryptography.RandomNumberGenerator rng = System.Security.Cryptography.RandomNumberGenerator.Create();
 
-                if (mod == 1)
-                    continue;
-                else if (mod == prime - 1)
-                    continue;
-                else
-                {
-                    BigInteger expo = (prime - 1) / greatestPowerOfTwoDevisor;
-                    for (long r = (long)expo - 1; r >= 0; r--)
-                    {
-                        try
-                        {
-                            double _mod = (double)BigInteger.ModPow(value, greatestPowerOfTwoDevisor * (long)Math.Pow(2, r), prime);
+            // 2. Bestimmen der erforderlichen Bytegröße:
+            // (bits + 7) / 8 rundet die Anzahl der benötigten Bytes auf.
+            // Ein Byte besteht aus 8 Bits, daher benötigen wir bei z.B. 9 Bits 2 Bytes.
+            byte[] buffer = new byte[(bits + 7) / 8];
 
-                            if (_mod == -1)
-                                break;
+            // 3. Füllen des Byte-Arrays mit zufälligen Werten.
+            rng.GetBytes(buffer);
 
-                            if (r == 0)
-                            {
-                                _numCount++;
-                                return false;
-                            }
-                        }
-                        catch { }
-                    }
-                }
-            }
+            // 4. Sicherstellen, dass die höchste Bitzahl, die wir möchten, gesetzt wird:
+            // `bits % 8` gibt die verbleibende Anzahl Bits an, die in einem unvollständigen Byte verwendet werden sollen.
+            // Wir setzen das erste Bit im letzten Byte, um sicherzustellen, dass die erzeugte Zahl mindestens `bits` Bits verwendet.
+            // `buffer[^1]` greift auf das letzte Byte im Array zu (der Index -1 bedeutet das letzte Element im Array).
+            buffer[^1] |= (byte)(0x01 << (bits % 8));
 
-            return true;
+            // Vorzeichenbit auf positiv setzen -> [^1] = [bytes.Length - 1]
+            buffer[^1] &= 0x7F;
+
+            // 5. Erstellen eines BigInteger-Objekts aus dem zufälligen Byte-Array.
+            BigInteger prime = new(buffer);
+
+            // 6. Rückgabe der generierten BigInteger-Zahl.
+            return prime;
         }
 
         /// <summary>
-        /// Bestimmt den größten Exponenten der Zahl 2 als Teiler von prime - 1
+        /// Prüft eine Pseudoprimzahl auf ihre Primität (Miller-Rabin-Test) OpenAi Implementierung
         /// </summary>
-        /// <param name="prime">Pseudoprimzahl</param>
-        /// <param name="maxExpo">größter Exponent</param>
-        /// <returns>gröter Teiler von prime - 1 in Form einer Potenz von 2</returns>
-        private static BigInteger GetMaxPowerOfTwoDevisor(BigInteger prime, long maxExpo)
+        /// <param name="n">Pseudoprimzahl</param>
+        /// <returns>Boolean</returns>
+        private static bool IsProbablePrime(BigInteger n)
         {
-            for (long i = maxExpo; i > 0; i--)
+            if (n < 2)
             {
-                BigInteger pm1 = prime - 1;
-                long exponent = (long)Math.Pow(2, i);
-                BigInteger greatestPowerOfTwoDevisor = pm1 / exponent;
-
-                if (greatestPowerOfTwoDevisor * exponent == pm1)
-                    return greatestPowerOfTwoDevisor;
+                return false;
             }
 
-            return 0;
+            if (n == 2 || n == 3)
+            {
+                return true;
+            }
+
+            if ((n & 1) == 0)
+            {
+                return false;
+            }
+
+            // Schreibe n - 1 als 2^s * d wobei d ungerade ist
+            BigInteger d = n - 1;
+            int s = 0;
+
+
+            while ((d & 1) == 0) // überprüft, ob d gerade ist, indem das niedrigstwertige Bit von d geprüft wird (Bitweises UND mit 1)
+            {
+                s++;
+                d >>= 1; // verschiebt d um eine Zweierpotenz nach recht, was einer Division durch 2 gleich kommt
+            }
+
+            BigInteger x = BigInteger.ModPow(rounds, d, n); // berechnet x = witness^d mod  n effizient mit dem "Modular Exponentiation"-Algorithmus
+
+            // Wenn x = 1, besteht eine hohe Wahrscheinlichkeit, dass n eine Primzahl ist (nach Fermats kleinem Satz)
+            // Wenn x = n − 1, ist n ebenfalls wahrscheinlich eine Primzahl, weil es darauf hindeutet, dass n den Miller-Rabin-Test bestanden hat
+            if (x == 1 || x == n - 1)
+            {
+                return true;
+            }
+
+            // Wiederholter Quadrat-Test
+            for (int i = 0; i < s - 1; i++)
+            {
+                x = BigInteger.ModPow(x, 2, n); // berechnet x^2 mod n
+
+                if (x == 1) // n ist sicher keine Primzahl (es liegt ein Nichttriviales Quadratwurzel von 1 mod n vor, was bedeutet, dass n eine zusammengesetzte Zahl ist)
+                {
+                    return false;
+                }
+
+                if (x == n - 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string CalculateAccuracy()
+        {
+            BigInteger powerResult = BigInteger.Pow(4, Rounds);
+            BigInteger difference = powerResult - BigInteger.One;
+
+            //double accuracy = (double)differrence / (double)powerResult;
+            //double accuracyPercentage = accuracy * 100;
+
+            // Um sicherzustellen, dass wir die Genauigkeit in 32 Nachkommastellen berechnen,
+            // multiplizieren wir den Unterschied mit 10000000000000000000000000000000 (10^32)
+            BigInteger scaledDifference = difference * BigInteger.Pow(10, 32);
+
+            // Berechnung der Genauigkeit
+            BigInteger accuracy = scaledDifference / powerResult;
+
+            string accuracyString = accuracy.ToString();
+            // [..2] = Substring(0, 2) | [2..] = Substring(Length - 2)
+            string accuracyPercentage = accuracyString[..2] + "." + accuracyString[2..];
+
+            return accuracyPercentage;
         }
     }
 }
